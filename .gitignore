@@ -1,3 +1,7 @@
 __pycache__
 .env
 .vscode
+
+# testing files
+test.py
+lato.py
