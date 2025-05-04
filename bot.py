@@ -55,7 +55,7 @@ async def run_election(interaction: Interaction):
     if user_id not in ADMINS:
         await interaction.response.send_message("You are not part of the I.O.C.")
 
-    message = em.get_candidate_list(discord.Object(id=guild_id), user_id)
+    message = em.start_election(discord.Object(id=guild_id))
     await interaction.response.send_message(message)
 
 

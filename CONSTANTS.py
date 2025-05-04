@@ -1,7 +1,6 @@
-# bot constants
 import discord
 
-
+# bot constants
 BOT_ID = 1368381588307447838
 GUILDS = [discord.Object(id=1267910656838078474)]
 ADMINS = [
