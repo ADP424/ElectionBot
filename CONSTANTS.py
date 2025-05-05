@@ -2,7 +2,10 @@ import discord
 
 # bot constants
 BOT_ID = 1368381588307447838
-GUILDS = [discord.Object(id=1267910656838078474)]
+GUILDS = [
+    discord.Object(id=1267910656838078474),  # Legions of Pingu
+    discord.Object(id=618568730162495498),  # Republic of Pingu
+]
 ADMINS = [
     476289093052006400,  # Rachel
     270653331293208587,  # Aidan

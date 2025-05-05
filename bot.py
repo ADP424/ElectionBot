@@ -9,15 +9,17 @@ from dotenv import load_dotenv
 from CONSTANTS import ADMINS, GUILDS, OUTPUT_CHANNEL
 import election_manager as em
 
-should_end_election = False
-
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
+STAGE = "dev"  # bot behaves differently if I'm testing
+
 intents = discord.Intents.default()
 bot = discord.Client(intents=intents)
 commands = app_commands.CommandTree(bot)
+
+should_end_election = False
 
 
 @commands.command(name="join_race", description="Add yourself as a candidate.", guilds=GUILDS)
@@ -75,7 +77,7 @@ async def run_election(interaction: Interaction):
     guild_id = interaction.guild_id
     user_id = interaction.user.id
 
-    if user_id not in ADMINS:
+    if user_id not in ADMINS and STAGE != "dev":
         await interaction.response.send_message("You are not part of the I.O.C.")
         return
 
@@ -83,7 +85,10 @@ async def run_election(interaction: Interaction):
     if success:
         global should_end_election
         should_end_election = False
-        on_election_end_dev.start()
+        if STAGE != "dev":
+            on_election_end.start()
+        else:
+            on_election_end_dev.start()
     await interaction.response.send_message(message)
 
 
@@ -96,11 +101,11 @@ async def vote(interaction: Interaction):
     guild_id = interaction.guild_id
     user_id = interaction.user.id
 
-    # if user_id in ADMINS:
-    #     await interaction.response.send_message("Members of the I.O.C. cannot vote for the C.R.P.", ephemeral=True)
-    #     return
+    if user_id in ADMINS and STAGE != "dev":
+        await interaction.response.send_message("Members of the I.O.C. cannot vote for the C.R.P.", ephemeral=True)
+        return
 
-    if em.citizen_has_voted(discord.Object(id=guild_id), user_id):
+    if em.citizen_has_voted(discord.Object(id=guild_id), user_id) and STAGE != "dev":
         await interaction.response.send_message("You already voted!", ephemeral=True)
         return
 
