@@ -16,7 +16,7 @@ def add_candidate(guild: discord.Object, discord_id: int):
         candidates[guild] = []
     if discord_id in candidates[guild]:
         return "You're already in the election."
-    
+
     if election_is_running.get(guild, False):
         return "You can't join while an election is running."
 
@@ -29,7 +29,7 @@ def remove_candidate(guild: discord.Object, discord_id: int):
         candidates[guild] = []
     if discord_id not in candidates[guild]:
         return "You're already not in the election."
-    
+
     if election_is_running.get(guild, False):
         return "You can't leave while an election is running."
 
@@ -40,7 +40,7 @@ def remove_candidate(guild: discord.Object, discord_id: int):
 def clear_election(guild: discord.Object):
     if election_is_running.get(guild, False):
         return "You need to end the current election before you can clear it."
-    
+
     if not candidates.get(guild, False):
         candidates[guild] = []
     candidates[guild].clear()

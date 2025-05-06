@@ -2,7 +2,7 @@ import datetime
 from discord.ext import tasks
 import os
 import discord
-from discord import Interaction, app_commands
+from discord import AllowedMentions, Interaction, app_commands
 from discord.ui import View, Button
 from dotenv import load_dotenv
 
@@ -19,7 +19,7 @@ intents = discord.Intents.default()
 bot = discord.Client(intents=intents)
 commands = app_commands.CommandTree(bot)
 
-should_end_election = False
+should_end_election: dict[discord.Object, bool] = {}
 
 
 @commands.command(name="join_race", description="Add yourself as a candidate.", guilds=GUILDS)
@@ -40,7 +40,7 @@ async def remove_candidate(interaction: Interaction):
 
 async def _end_election(guild: discord.Object):
     message, _ = em.end_election(guild)
-    await bot.get_channel(OUTPUT_CHANNEL).send(message)
+    await bot.get_channel(OUTPUT_CHANNEL[guild]).send(message)
 
 
 @commands.command(
@@ -55,16 +55,18 @@ async def run_election(interaction: Interaction):
     @tasks.loop(time=datetime.time(hour=0, minute=0), count=2)
     async def on_election_end():
         global should_end_election
-        if should_end_election:
-            _end_election(discord.Object(id=guild_id))
-        should_end_election = True
+        if should_end_election.get(discord.Object(id=guild_id), False):
+            await _end_election(discord.Object(id=guild_id))
+            print(f"Ended election for server {guild_id}")
+        should_end_election[discord.Object(id=guild_id)] = True
 
     @tasks.loop(minutes=15, count=2)
     async def on_election_end_dev():
         global should_end_election
-        if should_end_election:
-            _end_election(discord.Object(id=guild_id))
-        should_end_election = True
+        if should_end_election.get(discord.Object(id=guild_id), False):
+            await _end_election(discord.Object(id=guild_id))
+            print(f"Ended election for server {guild_id}")
+        should_end_election[discord.Object(id=guild_id)] = True
 
     if user_id not in ADMINS and STAGE != "dev":
         await interaction.response.send_message("You are not part of the I.O.C.")
@@ -73,7 +75,9 @@ async def run_election(interaction: Interaction):
     message, success = em.start_election(discord.Object(id=guild_id))
     if success:
         global should_end_election
-        should_end_election = False
+        should_end_election[discord.Object(id=guild_id)] = False
+
+        print(f"Started election for server {guild_id}")
         if STAGE != "dev":
             on_election_end.start()
         else:
@@ -94,7 +98,8 @@ async def end_election(interaction: Interaction):
         await interaction.response.send_message("You are not part of the I.O.C.")
         return
 
-    _end_election(discord.Object(id=guild_id))
+    await _end_election(discord.Object(id=guild_id))
+    await interaction.response.send_message("Ended the election.")
 
 
 @commands.command(
@@ -160,16 +165,15 @@ async def clear_election(interaction: Interaction):
     await interaction.response.send_message(message)
 
 
-if STAGE == "dev":
-    @commands.command(
-        name="list_candidates",
-        description="Dev command to list the candidates currently in the election.",
-        guilds=GUILDS,
-    )
-    async def list_candidates(interaction: Interaction):
-        guild_id = interaction.guild_id
-        message, _ = em.get_candidate_list(discord.Object(id=guild_id))
-        await interaction.response.send_message(message)
+@commands.command(
+    name="list_candidates",
+    description="List the candidates currently in the election.",
+    guilds=GUILDS,
+)
+async def list_candidates(interaction: Interaction):
+    guild_id = interaction.guild_id
+    message, _ = em.get_candidate_list(discord.Object(id=guild_id))
+    await interaction.response.send_message(message, allowed_mentions=AllowedMentions(users=False))
 
 
 @bot.event
