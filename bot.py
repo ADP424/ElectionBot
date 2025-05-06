@@ -38,15 +38,9 @@ async def remove_candidate(interaction: Interaction):
     await interaction.response.send_message(message)
 
 
-@commands.command(
-    name="list_candidates",
-    description="List the candidates currently in the election.",
-    guilds=GUILDS,
-)
-async def list_candidates(interaction: Interaction):
-    guild_id = interaction.guild_id
-    message, _ = em.get_candidate_list(discord.Object(id=guild_id))
-    await interaction.response.send_message(message)
+async def _end_election(guild: discord.Object):
+    message, _ = em.end_election(guild)
+    await bot.get_channel(OUTPUT_CHANNEL).send(message)
 
 
 @commands.command(
@@ -55,27 +49,22 @@ async def list_candidates(interaction: Interaction):
     guilds=GUILDS,
 )
 async def run_election(interaction: Interaction):
+    guild_id = interaction.guild_id
+    user_id = interaction.user.id
 
     @tasks.loop(time=datetime.time(hour=0, minute=0), count=2)
     async def on_election_end():
         global should_end_election
         if should_end_election:
-            for guild in GUILDS:
-                message, _ = em.end_election(guild)
-                await bot.get_channel(OUTPUT_CHANNEL).send(message)
+            _end_election(discord.Object(id=guild_id))
         should_end_election = True
 
-    @tasks.loop(minutes=1, count=2)
+    @tasks.loop(minutes=15, count=2)
     async def on_election_end_dev():
         global should_end_election
         if should_end_election:
-            for guild in GUILDS:
-                message, _ = em.end_election(guild)
-                await bot.get_channel(OUTPUT_CHANNEL).send(message)
+            _end_election(discord.Object(id=guild_id))
         should_end_election = True
-
-    guild_id = interaction.guild_id
-    user_id = interaction.user.id
 
     if user_id not in ADMINS and STAGE != "dev":
         await interaction.response.send_message("You are not part of the I.O.C.")
@@ -93,6 +82,22 @@ async def run_election(interaction: Interaction):
 
 
 @commands.command(
+    name="end_election",
+    description="End the election early.",
+    guilds=GUILDS,
+)
+async def end_election(interaction: Interaction):
+    guild_id = interaction.guild_id
+    user_id = interaction.user.id
+
+    if user_id not in ADMINS and STAGE != "dev":
+        await interaction.response.send_message("You are not part of the I.O.C.")
+        return
+
+    _end_election(discord.Object(id=guild_id))
+
+
+@commands.command(
     name="vote",
     description="Vote in the election.",
     guilds=GUILDS,
@@ -105,7 +110,7 @@ async def vote(interaction: Interaction):
         await interaction.response.send_message("Members of the I.O.C. cannot vote for the C.R.P.", ephemeral=True)
         return
 
-    if em.citizen_has_voted(discord.Object(id=guild_id), user_id) and STAGE != "dev":
+    if em.citizen_has_voted(discord.Object(id=guild_id), user_id):
         await interaction.response.send_message("You already voted!", ephemeral=True)
         return
 
@@ -136,6 +141,35 @@ async def vote(interaction: Interaction):
             await interaction.response.send_message(message, view=view, ephemeral=True)
 
     await update_message()
+
+
+@commands.command(
+    name="clear_election",
+    description="Clear all candidates and votes.",
+    guilds=GUILDS,
+)
+async def clear_election(interaction: Interaction):
+    guild_id = interaction.guild_id
+    user_id = interaction.user.id
+
+    if user_id not in ADMINS and STAGE != "dev":
+        await interaction.response.send_message("You are not part of the I.O.C.")
+        return
+
+    message, _ = em.end_election(discord.Object(id=guild_id))
+    await interaction.response.send_message(message)
+
+
+if STAGE == "dev":
+    @commands.command(
+        name="list_candidates",
+        description="Dev command to list the candidates currently in the election.",
+        guilds=GUILDS,
+    )
+    async def list_candidates(interaction: Interaction):
+        guild_id = interaction.guild_id
+        message, _ = em.get_candidate_list(discord.Object(id=guild_id))
+        await interaction.response.send_message(message)
 
 
 @bot.event

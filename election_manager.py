@@ -12,41 +12,51 @@ citizen_voted: dict[discord.Object, dict[int, bool]] = {}
 
 
 def add_candidate(guild: discord.Object, discord_id: int):
-    if not election_is_running.get(guild, False):
-        election_is_running[guild] = False
-    if not election_is_running[guild]:
-        return "There isn't currently an election to join."
-
     if not candidates.get(guild, False):
         candidates[guild] = []
     if discord_id in candidates[guild]:
         return "You're already in the election."
+    
+    if election_is_running.get(guild, False):
+        return "You can't join while an election is running."
 
     candidates[guild].append(discord_id)
     return "You added yourself to the election."
 
 
 def remove_candidate(guild: discord.Object, discord_id: int):
-    if not election_is_running.get(guild, False):
-        election_is_running[guild] = False
-    if not election_is_running[guild]:
-        return "There isn't currently an election to leave."
-
     if not candidates.get(guild, False):
         candidates[guild] = []
     if discord_id not in candidates[guild]:
         return "You're already not in the election."
+    
+    if election_is_running.get(guild, False):
+        return "You can't leave while an election is running."
 
     candidates[guild].remove(discord_id)
     return "You removed yourself from the election."
 
 
-def get_candidate_list(guild: discord.Object) -> tuple[str, list[int]]:
-    if not election_is_running.get(guild, False):
-        election_is_running[guild] = False
-    if not election_is_running[guild]:
-        return "There isn't currently an election.", []
+def clear_election(guild: discord.Object):
+    if election_is_running.get(guild, False):
+        return "You need to end the current election before you can clear it."
+    
+    if not candidates.get(guild, False):
+        candidates[guild] = []
+    candidates[guild].clear()
 
+    if not voters.get(guild, False):
+        voters[guild] = {}
+    voters[guild].clear()
+
+    if not citizen_voted.get(guild, False):
+        citizen_voted[guild] = {}
+    citizen_voted[guild].clear()
+
+    return "All candidates and voters cleared."
+
+
+def get_candidate_list(guild: discord.Object) -> tuple[str, list[int]]:
     if not candidates.get(guild, False) or len(candidates[guild]) == 0:
         return "No candidates have joined so far.", []
 
@@ -76,8 +86,6 @@ def end_election(guild: discord.Object) -> tuple[str, bool | list[int]]:
         return "Nobody voted in this race. So, uh...", False
 
     election_is_running[guild] = False
-
-    # ranked choice voting time
     message, results = _run_ranked_choice_election(candidates[guild], voters[guild], SEATS_AVAILABLE)
 
     return message, results
@@ -115,7 +123,7 @@ def _run_ranked_choice_election(
     all_candidates: set[int] = set(candidates)
     num_voters: int = len(voters)
 
-    quota = num_voters // (available_seats + 1) + 1
+    quota = num_voters // (num_voters + 1) + 1
     ballots = list(voters.values())
     weights = [1.0] * len(ballots)
 
